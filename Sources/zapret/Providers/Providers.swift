@@ -100,7 +100,7 @@ final class ArchiveOrgProvider: MusicProvider {
     
     func search(query: String) async throws -> [Track] {
         let encoded = "\"\(query)\" AND mediatype:(audio)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let url = URL(string: "https://archive.org/advancedsearch.php?q=\(encoded)&fl[]=identifier&fl[]=title&fl[]=creator&rows=15&page=1&output=json")!
+        let url = URL(string: "https://archive.org/advancedsearch.php?q=\(encoded)&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&rows=15&page=1&output=json")!
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(ArchiveSearchResponse.self, from: data)
         return response.response?.docs.map { $0.toTrack() } ?? []
@@ -125,22 +125,40 @@ struct ArchiveSearchResponse: Decodable { let response: ArchiveResponse? }
 struct ArchiveResponse: Decodable { let docs: [ArchiveDoc] }
 struct ArchiveDoc: Decodable {
     let identifier: String
-    let title: String?
-    let creator: String?
+    let title: StringList?
+    let creator: StringList?
 }
 struct ArchiveMetadata: Decodable {
     let files: [ArchiveFile]
     let metadata: ArchiveMeta?
 }
 struct ArchiveFile: Decodable { let name: String; let format: String?; let size: String? }
-struct ArchiveMeta: Decodable { let title: String?; let creator: String? }
+struct ArchiveMeta: Decodable { let title: StringList?; let creator: StringList? }
+
+/// archive.org отдаёт некоторые поля как строку, а некоторые как массив строк.
+struct StringList: Decodable {
+    let values: [String]
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let single = try? container.decode(String.self) {
+            values = [single]
+        } else if let list = try? container.decode([String].self) {
+            values = list
+        } else {
+            values = []
+        }
+    }
+}
 
 extension ArchiveDoc {
     func toTrack() -> Track {
-        Track(
+        let title = self.title?.values.first ?? ""
+        let artist = creator?.values.first ?? ""
+        return Track(
             id: identifier,
-            title: title?.isEmpty == false ? title! : identifier,
-            artist: creator?.isEmpty == false ? creator! : "",
+            title: title.isEmpty ? identifier : title,
+            artist: artist,
             album: "archive.org",
             durationSec: 0,
             artworkUrl: "https://archive.org/services/img/\(identifier)",

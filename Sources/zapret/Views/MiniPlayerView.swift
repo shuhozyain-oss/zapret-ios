@@ -5,9 +5,7 @@ struct MiniPlayerView: View {
     @Binding var showFullPlayer: Bool
     
     var body: some View {
-        guard let track = vm.playerState.currentTrack else { return AnyView(EmptyView()) }
-        
-        return AnyView(
+        if let track = vm.playerState.currentTrack {
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
                     ArtworkView(url: track.artworkUrl, seed: track.title, size: 46)
@@ -24,7 +22,7 @@ struct MiniPlayerView: View {
                             .font(.title2)
                             .foregroundColor(.white)
                             .frame(width: 42, height: 42)
-                            .background(Color.white)
+                            .background(Color.white.opacity(0.2))
                             .clipShape(Circle())
                     }
                     
@@ -41,9 +39,9 @@ struct MiniPlayerView: View {
                 .cornerRadius(22)
                 .shadow(radius: 8)
                 .padding(.horizontal, 14)
+                .contentShape(Rectangle())
                 .onTapGesture { showFullPlayer = true }
                 
-                // Progress bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Rectangle().fill(Color.white.opacity(0.2))
@@ -54,7 +52,7 @@ struct MiniPlayerView: View {
                 }
                 .frame(height: 2)
             }
-        )
+        }
     }
     
     private var progress: CGFloat {

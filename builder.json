@@ -1,0 +1,29 @@
+{
+  "project": "zapret-ios",
+  "platform": "ios",
+  "github": {
+    "owner": "shuhozyain-oss",
+    "repo": "zapret-ios"
+  },
+  "codemagic": {},
+  "bitrise": {},
+  "ios": {
+    "path": ".",
+    "scheme": "zapret",
+    "bundleId": "com.example.zapret",
+    "configuration": "Release",
+    "signing": false
+  },
+  "flutter": {
+    "watch": {}
+  },
+  "reactNative": {},
+  "kmp": {},
+  "mobai": {},
+  "defaultProfile": "development",
+  "profiles": {
+    "development": {
+      "configuration": "Release"
+    }
+  }
+}

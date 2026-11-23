@@ -1,8 +1,9 @@
 import Foundation
+import UIKit
 import Combine
 
 final class MusicViewModel: ObservableObject {
-    enum Tab { case search, favorites, device }
+    enum Tab: Hashable { case search, favorites, device }
     
     @Published var tab: Tab = .search
     @Published var searchQuery = ""
@@ -11,15 +12,13 @@ final class MusicViewModel: ObservableObject {
     @Published var deviceTracks: [Track] = []
     @Published var favorites: [Track] = []
     @Published var downloadStates: [String: DownloadManager.DownloadState] = [:]
+    @Published var playerState = PlayerState()
     
-    private let repository = MusicRepository()
     private let downloadManager = DownloadManager()
     private let favoritesStore = FavoritesStore()
     private let audioPlayer = AudioPlayer()
     private var cancellables = Set<AnyCancellable>()
     private var searchTask: Task<Void, Never>?
-    
-    var playerState: PlayerState { audioPlayer.state }
     
     init() {
         bind()
@@ -40,18 +39,22 @@ final class MusicViewModel: ObservableObject {
         
         favoritesStore.$favorites
             .assign(to: &$favorites)
+        
+        audioPlayer.$state
+            .assign(to: &$playerState)
     }
     
     func performSearch(query: String) {
         searchTask?.cancel()
-        guard !query.isEmpty else {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
             searchResults = []
             searchLoading = false
             return
         }
         
         searchLoading = true
-        searchTask = Task {
+        searchTask = Task { [weak self] in
             let providers: [MusicProvider] = [
                 DeezerProvider(),
                 ItunesProvider(),
@@ -59,21 +62,18 @@ final class MusicViewModel: ObservableObject {
                 YouTubeProvider()
             ]
             
-            do {
-                var results: [Track] = []
-                for provider in providers {
-                    let tracks = try await provider.search(query: query)
+            var results: [Track] = []
+            for provider in providers {
+                if Task.isCancelled { return }
+                if let tracks = try? await provider.search(query: trimmed) {
                     results.append(contentsOf: tracks)
                 }
-                await MainActor.run {
-                    self.searchResults = results
-                    self.searchLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.searchResults = []
-                    self.searchLoading = false
-                }
+            }
+            
+            await MainActor.run {
+                guard let self = self else { return }
+                self.searchResults = results
+                self.searchLoading = false
             }
         }
     }
@@ -84,7 +84,7 @@ final class MusicViewModel: ObservableObject {
     }
     
     func refreshDevice() {
-        // Simplified - real implementation would use MPMediaQuery
+        // Заглушка: на iOS нет прямого доступа к медиатеке без MPMediaLibrary
         deviceTracks = []
     }
     
@@ -99,8 +99,8 @@ final class MusicViewModel: ObservableObject {
     func download(_ track: Track) {
         let key = track.key
         if downloadManager.isDownloaded(key) { return }
-        downloadManager.startDownload(for: track) { [weak self] t in
-            await self?.resolveStreamUrl(for: t)
+        downloadManager.startDownload(for: track) { [weak self] track in
+            await self?.resolveStreamUrl(for: track)
         }
     }
     
@@ -113,7 +113,6 @@ final class MusicViewModel: ObservableObject {
         case .archive:
             return try? await ArchiveOrgProvider().resolveStreamUrl(for: track.id)
         case .youtube:
-            // YouTube needs yt-dlp or similar - use deep link
             return track.openUrl
         default:
             return track.streamUrl
@@ -121,42 +120,48 @@ final class MusicViewModel: ObservableObject {
     }
     
     func play(_ track: Track, queue: [Track]) {
-        guard let index = queue.firstIndex(where: { $0.id == track.id && $0.source == track.source }) else { return }
-        
-        // Check if downloaded
-        if let localUrl = downloadManager.localUri(for: track.key) {
-            var playable = track
-            playable = Track(
-                id: track.id, title: track.title, artist: track.artist, album: track.album,
-                durationSec: track.durationSec, artworkUrl: track.artworkUrl,
-                streamUrl: localUrl.absoluteString, source: track.source,
-                openUrl: track.openUrl, requiresResolution: false, isPreview: track.isPreview
-            )
-            audioPlayer.play(tracks: [playable], startIndex: 0) { _ in
-                Task { nil }
+        if track.source == .youtube {
+            if let openUrl = track.openUrl, let url = URL(string: openUrl) {
+                UIApplication.shared.open(url)
             }
-        } else if track.requiresResolution || track.streamUrl?.isEmpty != false {
-            // Need to resolve
-            Task {
-                let url = await resolveStreamUrl(for: track)
-                var playable = track
-                if let u = url {
-                    playable = Track(
-                        id: track.id, title: track.title, artist: track.artist, album: track.album,
-                        durationSec: track.durationSec, artworkUrl: track.artworkUrl,
-                        streamUrl: u, source: track.source,
-                        openUrl: track.openUrl, requiresResolution: false, isPreview: track.isPreview
-                    )
-                }
-                audioPlayer.play(tracks: [playable], startIndex: 0) { _ in
-                    Task { nil }
-                }
-            }
-        } else {
-            audioPlayer.play(tracks: queue.filter { !$0.streamUrl.isNilOrEmpty }, startIndex: index) { _ in
-                Task { nil }
-            }
+            return
         }
+        
+        if let localUrl = downloadManager.localUri(for: track.key) {
+            let playable = replace(track, streamUrl: localUrl.absoluteString)
+            audioPlayer.play(tracks: [playable]) { _ in nil }
+            return
+        }
+        
+        if track.requiresResolution || track.isNilOrEmptyStream {
+            Task { [weak self] in
+                guard let self = self else { return }
+                let resolved = await self.resolveStreamUrl(for: track)
+                let playable = resolved.isEmptyOrNil ? track : self.replace(track, streamUrl: resolved)
+                self.audioPlayer.play(tracks: [playable]) { _ in nil }
+            }
+            return
+        }
+        
+        let playable = queue.filter { !$0.isNilOrEmptyStream }
+        guard let index = playable.firstIndex(where: { $0.id == track.id && $0.source == track.source }) else { return }
+        audioPlayer.play(tracks: playable, startIndex: index) { _ in nil }
+    }
+    
+    private func replace(_ track: Track, streamUrl: String?) -> Track {
+        Track(
+            id: track.id,
+            title: track.title,
+            artist: track.artist,
+            album: track.album,
+            durationSec: track.durationSec,
+            artworkUrl: track.artworkUrl,
+            streamUrl: streamUrl,
+            source: track.source,
+            openUrl: track.openUrl,
+            requiresResolution: false,
+            isPreview: track.isPreview
+        )
     }
     
     func togglePlayPause() { audioPlayer.togglePlayPause() }
@@ -166,5 +171,5 @@ final class MusicViewModel: ObservableObject {
 }
 
 private extension Optional where Wrapped == String {
-    var isNilOrEmpty: Bool { self == nil || self!.isEmpty }
+    var isEmptyOrNil: Bool { self == nil || self!.isEmpty }
 }

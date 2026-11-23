@@ -2,25 +2,25 @@ import SwiftUI
 
 struct SearchView: View {
     @EnvironmentObject var vm: MusicViewModel
-    @State private var query = ""
     
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 TextField("Найти трек или исполнителя", text: $vm.searchQuery)
                     .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
                 
                 if vm.searchLoading {
                     ProgressView()
                         .frame(maxHeight: .infinity)
-                } else if query.isEmpty && vm.searchResults.isEmpty {
+                } else if vm.searchResults.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "music.note.list")
                             .font(.system(size: 50))
                             .foregroundColor(.gray)
-                        Text("Найди и послушай")
+                        Text("Ничего не найдено")
                             .font(.headline).bold()
                         Text("YouTube · Archive.org — полные треки")
                             .font(.subheadline).foregroundColor(.secondary)
@@ -39,6 +39,7 @@ struct SearchView: View {
                             vm.play(track, queue: vm.searchResults)
                         }
                     }
+                    .listStyle(.plain)
                 }
             }
             .navigationTitle("zapret")

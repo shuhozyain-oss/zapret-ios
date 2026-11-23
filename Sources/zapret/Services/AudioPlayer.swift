@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import MediaPlayer
 import Combine
 
 final class AudioPlayer: ObservableObject {
@@ -10,6 +11,7 @@ final class AudioPlayer: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var queue: [Track] = []
     private var currentIndex: Int = 0
+    private var resolver: ((Track) async -> String?)?
     
     init() {
         setupAudioSession()
@@ -36,6 +38,7 @@ final class AudioPlayer: ObservableObject {
     func play(tracks: [Track], startIndex: Int = 0, urlResolver: @escaping (Track) async -> String?) {
         self.queue = tracks
         self.currentIndex = startIndex
+        self.resolver = urlResolver
         playCurrent(urlResolver: urlResolver)
     }
     
@@ -105,16 +108,15 @@ final class AudioPlayer: ObservableObject {
     }
     
     func next() {
-        currentIndex += 1
-        if currentIndex >= queue.count {
-            currentIndex = 0
-        }
-        // Need a resolver - simplified: reuse existing playCurrent
-        // In production, store the resolver
+        guard !queue.isEmpty else { return }
+        currentIndex = (currentIndex + 1) % queue.count
+        if let resolver = resolver { playCurrent(urlResolver: resolver) }
     }
     
     func previous() {
+        guard !queue.isEmpty else { return }
         currentIndex = max(0, currentIndex - 1)
+        if let resolver = resolver { playCurrent(urlResolver: resolver) }
     }
     
     func release() {

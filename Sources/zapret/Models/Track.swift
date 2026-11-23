@@ -11,7 +11,7 @@ enum Source: String, CaseIterable, Identifiable {
     var displayName: String { rawValue }
 }
 
-struct Track: Identifiable {
+struct Track: Identifiable, Equatable {
     let id: String
     let title: String
     let artist: String
@@ -25,6 +25,7 @@ struct Track: Identifiable {
     let isPreview: Bool
     
     var key: String { "\(source.rawValue):\(id)" }
+    var isNilOrEmptyStream: Bool { streamUrl?.isEmpty != false }
 }
 
 struct PlayerState: Equatable {
