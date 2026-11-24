@@ -3,7 +3,9 @@
 
 # Xcode
 build/
+dist/
 DerivedData/
+*.ipa
 *.xcuserstate
 xcuserdata/
 *.xcscmblueprint
