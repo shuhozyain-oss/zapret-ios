@@ -11,7 +11,7 @@ final class DeezerProvider: MusicProvider {
     
     func search(query: String) async throws -> [Track] {
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let url = URL(string: "https://api.deezer.com/search?q=\(encoded)&limit=25")!
+        guard let url = URL(string: "https://api.deezer.com/search?q=\(encoded)&limit=25") else { return [] }
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(DeezerResponse.self, from: data)
         return response.data.map { $0.toTrack() }
@@ -56,7 +56,7 @@ final class ItunesProvider: MusicProvider {
     
     func search(query: String) async throws -> [Track] {
         let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let url = URL(string: "https://itunes.apple.com/search?term=\(encoded)&media=music&entity=song&limit=25")!
+        guard let url = URL(string: "https://itunes.apple.com/search?term=\(encoded)&media=music&entity=song&limit=25") else { return [] }
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(ItunesResponse.self, from: data)
         return response.results.map { $0.toTrack() }
@@ -100,14 +100,14 @@ final class ArchiveOrgProvider: MusicProvider {
     
     func search(query: String) async throws -> [Track] {
         let encoded = "\"\(query)\" AND mediatype:(audio)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let url = URL(string: "https://archive.org/advancedsearch.php?q=\(encoded)&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&rows=15&page=1&output=json")!
+        guard let url = URL(string: "https://archive.org/advancedsearch.php?q=\(encoded)&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&rows=15&page=1&output=json") else { return [] }
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(ArchiveSearchResponse.self, from: data)
         return response.response?.docs.map { $0.toTrack() } ?? []
     }
     
     func resolveStreamUrl(for identifier: String) async throws -> String? {
-        let url = URL(string: "https://archive.org/metadata/\(identifier)")!
+        guard let url = URL(string: "https://archive.org/metadata/\(identifier)") else { return nil }
         let (data, _) = try await URLSession.shared.data(from: url)
         let meta = try JSONDecoder().decode(ArchiveMetadata.self, from: data)
         let audio = meta.files.first { file in
