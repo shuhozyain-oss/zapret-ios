@@ -2,25 +2,18 @@ import SwiftUI
 
 struct FullPlayerView: View {
     @EnvironmentObject var vm: MusicViewModel
-    @Environment(\.dismiss) var dismiss
+    @Binding var isPresented: Bool
     @State private var scrubbing: CGFloat?
     
     var body: some View {
         if let track = vm.playerState.currentTrack {
             ZStack {
-                Color.black.ignoresSafeArea()
-                
-                if let artworkUrl = track.artworkUrl, let url = URL(string: artworkUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Color.gray
-                    }
-                    .blur(radius: 70)
-                    .ignoresSafeArea()
-                }
-                
-                Color.black.opacity(0.6).ignoresSafeArea()
+                LinearGradient(
+                    colors: [Color(hex: "1C1C1E"), Color.black],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     header
@@ -60,7 +53,7 @@ struct FullPlayerView: View {
     
     private var header: some View {
         HStack {
-            Button { dismiss() } label: {
+            Button { isPresented = false } label: {
                 Image(systemName: "chevron.down")
                     .font(.title2)
                     .foregroundColor(.white)
@@ -68,6 +61,8 @@ struct FullPlayerView: View {
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
+            
             Spacer()
             Text("СЕЙЧАС ИГРАЕТ")
                 .font(.caption).bold()
@@ -125,6 +120,7 @@ struct FullPlayerView: View {
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
             
             Button { vm.previous() } label: {
                 Image(systemName: "backward.fill")
@@ -134,6 +130,7 @@ struct FullPlayerView: View {
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
             
             Button { vm.togglePlayPause() } label: {
                 Image(systemName: vm.playerState.isPlaying ? "pause.fill" : "play.fill")
@@ -143,6 +140,7 @@ struct FullPlayerView: View {
                     .background(Color.white)
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
             
             Button { vm.next() } label: {
                 Image(systemName: "forward.fill")
@@ -152,6 +150,7 @@ struct FullPlayerView: View {
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
             
             Button { vm.download(track) } label: {
                 Image(systemName: "arrow.down.circle")
@@ -161,6 +160,7 @@ struct FullPlayerView: View {
                     .background(Color.white.opacity(0.1))
                     .clipShape(Circle())
             }
+            .buttonStyle(.plain)
         }
     }
     

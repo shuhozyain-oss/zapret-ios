@@ -30,7 +30,7 @@ struct ContentView: View {
             }
         }
         .fullScreenCover(isPresented: $showFullPlayer) {
-            FullPlayerView()
+            FullPlayerView(isPresented: $showFullPlayer)
         }
     }
 }

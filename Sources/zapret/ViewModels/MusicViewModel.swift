@@ -55,9 +55,8 @@ final class MusicViewModel: ObservableObject {
         
         searchLoading = true
         searchTask = Task { [weak self] in
+            // Deezer и iTunes отдают только 30-секундные превью — в поиске не участвуют.
             let providers: [MusicProvider] = [
-                DeezerProvider(),
-                ItunesProvider(),
                 ArchiveOrgProvider(),
                 YouTubeProvider()
             ]
@@ -70,9 +69,11 @@ final class MusicViewModel: ObservableObject {
                 }
             }
             
+            let fullTracks = results.filter { !$0.isPreview }
+            
             await MainActor.run {
                 guard let self = self else { return }
-                self.searchResults = results
+                self.searchResults = fullTracks
                 self.searchLoading = false
             }
         }
