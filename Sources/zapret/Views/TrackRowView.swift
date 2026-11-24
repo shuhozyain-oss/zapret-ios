@@ -96,7 +96,7 @@ struct PlayingBarsView: View {
             }
         }
         .onAppear {
-            withAnimation(.repeatForever(autoreverses: true)) {
+            withAnimation(Animation.repeatForever(autoreverses: true)) {
                 heights = [1.0, 0.4, 1.0]
             }
         }
