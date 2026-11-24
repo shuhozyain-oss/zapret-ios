@@ -96,7 +96,7 @@ struct PlayingBarsView: View {
             }
         }
         .onAppear {
-            withAnimation(Animation.repeatForever(Animation.smooth(duration: 0.5).delay(0).autoreverses(true))) {
+            withAnimation(.repeatForever(autoreverses: true)) {
                 heights = [1.0, 0.4, 1.0]
             }
         }
@@ -116,7 +116,7 @@ struct DownloadButtonView: View {
             case .downloading(let progress):
                 ZStack {
                     Circle().stroke(lineWidth: 2).opacity(0.3).foregroundColor(.secondary)
-                    Circle().trim(from: 0, to: progress).stroke(lineWidth: 2).foregroundColor(.secondary)
+                    Circle().trim(from: 0, to: CGFloat(progress)).stroke(lineWidth: 2).foregroundColor(.secondary)
                 }
                 .frame(width: 20, height: 20)
             case .downloaded:

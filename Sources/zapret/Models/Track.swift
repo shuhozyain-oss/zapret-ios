@@ -1,6 +1,6 @@
 import Foundation
 
-enum Source: String, CaseIterable, Identifiable {
+enum Source: String, CaseIterable, Identifiable, Codable {
     case youtube = "YouTube"
     case deezer = "Deezer"
     case itunes = "Apple Music"
@@ -11,7 +11,7 @@ enum Source: String, CaseIterable, Identifiable {
     var displayName: String { rawValue }
 }
 
-struct Track: Identifiable, Equatable {
+struct Track: Identifiable, Equatable, Codable {
     let id: String
     let title: String
     let artist: String

@@ -25,8 +25,8 @@ final class DownloadManager: ObservableObject {
                 return
             }
             
-            let (data, _) = try? await URLSession.shared.data(from: url)
-            guard let data = data else {
+            let result = try? await URLSession.shared.data(from: url)
+            guard let data = result?.0 else {
                 await MainActor.run { states[key] = .failed }
                 return
             }
