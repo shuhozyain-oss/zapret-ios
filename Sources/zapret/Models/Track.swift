@@ -2,6 +2,7 @@ import Foundation
 
 enum Source: String, CaseIterable, Identifiable, Codable {
     case youtube = "YouTube"
+    case soundcloud = "SoundCloud"
     case deezer = "Deezer"
     case itunes = "Apple Music"
     case archive = "Archive.org"

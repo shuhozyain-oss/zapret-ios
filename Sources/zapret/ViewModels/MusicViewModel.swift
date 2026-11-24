@@ -1,5 +1,4 @@
 import Foundation
-import UIKit
 import Combine
 
 final class MusicViewModel: ObservableObject {
@@ -17,6 +16,8 @@ final class MusicViewModel: ObservableObject {
     private let downloadManager = DownloadManager()
     private let favoritesStore = FavoritesStore()
     private let audioPlayer = AudioPlayer()
+    private let youtubeProvider = YouTubeProvider()
+    private let soundCloudProvider = SoundCloudProvider()
     private var cancellables = Set<AnyCancellable>()
     private var searchTask: Task<Void, Never>?
     
@@ -55,10 +56,13 @@ final class MusicViewModel: ObservableObject {
         
         searchLoading = true
         searchTask = Task { [weak self] in
+            guard let self = self else { return }
+
             // Deezer и iTunes отдают только 30-секундные превью — в поиске не участвуют.
             let providers: [MusicProvider] = [
-                ArchiveOrgProvider(),
-                YouTubeProvider()
+                self.youtubeProvider,
+                self.soundCloudProvider,
+                ArchiveOrgProvider()
             ]
             
             var results: [Track] = []
@@ -72,7 +76,6 @@ final class MusicViewModel: ObservableObject {
             let fullTracks = results.filter { !$0.isPreview }
             
             await MainActor.run {
-                guard let self = self else { return }
                 self.searchResults = fullTracks
                 self.searchLoading = false
             }
@@ -114,20 +117,15 @@ final class MusicViewModel: ObservableObject {
         case .archive:
             return try? await ArchiveOrgProvider().resolveStreamUrl(for: track.id)
         case .youtube:
-            return track.openUrl
+            return try? await youtubeProvider.resolveStreamUrl(for: track.id)
+        case .soundcloud:
+            return try? await soundCloudProvider.resolveStreamUrl(for: track.id)
         default:
             return track.streamUrl
         }
     }
     
     func play(_ track: Track, queue: [Track]) {
-        if track.source == .youtube {
-            if let openUrl = track.openUrl, let url = URL(string: openUrl) {
-                UIApplication.shared.open(url)
-            }
-            return
-        }
-        
         if let localUrl = downloadManager.localUri(for: track.key) {
             let playable = replace(track, streamUrl: localUrl.absoluteString)
             audioPlayer.play(tracks: [playable]) { _ in nil }

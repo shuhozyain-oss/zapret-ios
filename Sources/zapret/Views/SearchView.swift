@@ -22,7 +22,7 @@ struct SearchView: View {
                             .foregroundColor(.gray)
                         Text("Ничего не найдено")
                             .font(.headline).bold()
-                        Text("YouTube · Archive.org — полные треки")
+                        Text("YouTube · SoundCloud · Archive.org — полные треки")
                             .font(.subheadline).foregroundColor(.secondary)
                     }
                     .frame(maxHeight: .infinity)

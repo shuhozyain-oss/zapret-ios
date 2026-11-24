@@ -169,28 +169,3 @@ extension ArchiveDoc {
             isPreview: false
         )
     }
-}
-
-final class YouTubeProvider: MusicProvider {
-    let source = Source.youtube
-    
-    func search(query: String) async throws -> [Track] {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "https://www.youtube.com/results?search_query=\(encoded)"
-        return [Track(
-            id: urlString.hash.description,
-            title: query,
-            artist: "YouTube",
-            album: "",
-            durationSec: 0,
-            artworkUrl: nil,
-            streamUrl: nil,
-            source: .youtube,
-            openUrl: urlString,
-            requiresResolution: false,
-            isPreview: false
-        )]
-    }
-    
-    func resolveStreamUrl(for identifier: String) async throws -> String? { nil }
-}
