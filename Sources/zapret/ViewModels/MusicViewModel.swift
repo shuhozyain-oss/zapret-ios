@@ -113,6 +113,10 @@ final class MusicViewModel: ObservableObject {
     }
     
     private func resolveStreamUrl(for track: Track) async -> String? {
+        // Локально скачанный трек играем из файла, без обращения к сети.
+        if let localUrl = downloadManager.localUri(for: track.key) {
+            return localUrl.absoluteString
+        }
         switch track.source {
         case .archive:
             return try? await ArchiveOrgProvider().resolveStreamUrl(for: track.id)
@@ -126,49 +130,21 @@ final class MusicViewModel: ObservableObject {
     }
     
     func play(_ track: Track, queue: [Track]) {
-        if let localUrl = downloadManager.localUri(for: track.key) {
-            let playable = replace(track, streamUrl: localUrl.absoluteString)
-            audioPlayer.play(tracks: [playable]) { _ in nil }
+        // В очередь кладём весь список, а не один трек — иначе next/previous
+        // крутят один и тот же трек по кругу.
+        let playable = queue
+        guard let index = playable.firstIndex(where: { $0.id == track.id && $0.source == track.source }) else {
             return
         }
-        
-        if track.requiresResolution || track.isNilOrEmptyStream {
-            Task { [weak self] in
-                guard let self = self else { return }
-                let resolved = await self.resolveStreamUrl(for: track)
-                let playable = resolved.isEmptyOrNil ? track : self.replace(track, streamUrl: resolved)
-                self.audioPlayer.play(tracks: [playable]) { _ in nil }
-            }
-            return
+        audioPlayer.play(tracks: playable, startIndex: index) { [weak self] track in
+            await self?.resolveStreamUrl(for: track)
         }
-        
-        let playable = queue.filter { !$0.isNilOrEmptyStream }
-        guard let index = playable.firstIndex(where: { $0.id == track.id && $0.source == track.source }) else { return }
-        audioPlayer.play(tracks: playable, startIndex: index) { _ in nil }
-    }
-    
-    private func replace(_ track: Track, streamUrl: String?) -> Track {
-        Track(
-            id: track.id,
-            title: track.title,
-            artist: track.artist,
-            album: track.album,
-            durationSec: track.durationSec,
-            artworkUrl: track.artworkUrl,
-            streamUrl: streamUrl,
-            source: track.source,
-            openUrl: track.openUrl,
-            requiresResolution: false,
-            isPreview: track.isPreview
-        )
     }
     
     func togglePlayPause() { audioPlayer.togglePlayPause() }
     func seek(to ms: Double) { audioPlayer.seek(to: ms) }
     func next() { audioPlayer.next() }
     func previous() { audioPlayer.previous() }
-}
-
-private extension Optional where Wrapped == String {
-    var isEmptyOrNil: Bool { self == nil || self!.isEmpty }
+    func toggleShuffle() { audioPlayer.toggleShuffle() }
+    func cycleRepeat() { audioPlayer.cycleRepeat() }
 }

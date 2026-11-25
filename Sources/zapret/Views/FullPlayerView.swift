@@ -45,10 +45,41 @@ struct FullPlayerView: View {
                     
                     controls(track: track)
                     
+                    Spacer().frame(height: 18)
+                    
+                    modifiers
+                    
                     Spacer()
                 }
             }
         }
+    }
+    
+    private var modifiers: some View {
+        HStack(spacing: 0) {
+            Button { vm.toggleShuffle() } label: {
+                Image(systemName: "shuffle")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(vm.playerState.shuffle ? .accentColor : .secondary)
+                    .frame(width: 52, height: 44)
+                    .background(vm.playerState.shuffle ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            
+            Spacer()
+            
+            Button { vm.cycleRepeat() } label: {
+                Image(systemName: vm.playerState.repeatMode.iconName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(vm.playerState.repeatMode == .off ? .secondary : .accentColor)
+                    .frame(width: 52, height: 44)
+                    .background(vm.playerState.repeatMode == .off ? Color.clear : Color.accentColor.opacity(0.15))
+                    .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 40)
     }
     
     private var header: some View {

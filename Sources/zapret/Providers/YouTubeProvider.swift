@@ -13,6 +13,8 @@ final class YouTubeProvider: MusicProvider {
         "https://pipedapi.leptons.xyz",
         "https://pipedapi.r4fo.com",
         "https://pipedapi.ducks.party",
+        "https://pipedapi.reallyaweso.me",
+        "https://pipedapi.orangenet.cc",
         "https://api.piped.yt"
     ]
 
@@ -22,6 +24,7 @@ final class YouTubeProvider: MusicProvider {
         "https://yewtu.be",
         "https://invidious.jing.rocks",
         "https://iv.melmac.space",
+        "https://iv.datura.network",
         "https://invidious.privacyredirect.com"
     ]
 
@@ -108,8 +111,12 @@ final class YouTubeProvider: MusicProvider {
         guard let result = try? JSONDecoder().decode(PipedStreamsResponse.self, from: data) else { return nil }
 
         let audio = result.audioStreams ?? []
-        if let mp4 = audio.first(where: { $0.mimeType?.hasPrefix("audio/mp4") == true }) { return mp4.url }
+        // AVPlayer на iOS надёжнее всего играет AAC в mp4-контейнере.
+        if let aac = audio.first(where: { $0.mimeType?.hasPrefix("audio/mp4") == true }) { return aac.url }
         if let anyMp4 = audio.first(where: { ($0.mimeType ?? "").contains("mp4") }) { return anyMp4.url }
+        // Крайний вариант — любой аудиопоток, если mp4 нет.
+        if let anyAudio = audio.first(where: { $0.mimeType?.hasPrefix("audio/") == true }) { return anyAudio.url }
+        if let anyAudio = audio.first { return anyAudio.url }
 
         let video = result.videoStreams ?? []
         if let muxed = video.first(where: { $0.videoOnly == false && $0.mimeType?.hasPrefix("video/mp4") == true }) {
@@ -137,19 +144,25 @@ final class YouTubeProvider: MusicProvider {
         guard let video = try? JSONDecoder().decode(InvidiousVideo.self, from: data) else { return nil }
 
         let formats = video.adaptiveFormats ?? []
-        if let mp4 = formats.first(where: { $0.type?.hasPrefix("audio/mp4") == true }) { return mp4.url }
+        if let aac = formats.first(where: { $0.type?.hasPrefix("audio/mp4") == true }) { return aac.url }
         if let anyMp4 = formats.first(where: {
             guard let type = $0.type else { return false }
             return type.contains("mp4") && !type.hasPrefix("video/mp4")
         }) {
             return anyMp4.url
         }
+        if let anyAudio = formats.first(where: { $0.type?.hasPrefix("audio/") == true }) { return anyAudio.url }
+
+        // Muxed-потоки (аудио+видео в одном файле) как запасной вариант.
+        let muxed = video.formatStreams ?? []
+        if let mp4 = muxed.first(where: { $0.type?.hasPrefix("video/mp4") == true }) { return mp4.url }
+        if let any = muxed.first { return any.url }
         return nil
     }
 
     private static func fetch(url: URL) async -> Data? {
         var request = URLRequest(url: url)
-        request.timeoutInterval = 6
+        request.timeoutInterval = 10
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
@@ -240,6 +253,7 @@ struct InvidiousThumbnail: Decodable {
 
 struct InvidiousVideo: Decodable {
     let adaptiveFormats: [InvidiousFormat]?
+    let formatStreams: [InvidiousFormat]?
 }
 
 struct InvidiousFormat: Decodable {

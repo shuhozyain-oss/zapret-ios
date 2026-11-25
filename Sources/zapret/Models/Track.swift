@@ -29,6 +29,29 @@ struct Track: Identifiable, Equatable, Codable {
     var isNilOrEmptyStream: Bool { streamUrl?.isEmpty != false }
 }
 
+enum RepeatMode: String, CaseIterable, Codable {
+    case off
+    case all
+    case one
+    
+    /// Порядок переключения по нажатию кнопки «повтор».
+    func next() -> RepeatMode {
+        switch self {
+        case .off: return .all
+        case .all: return .one
+        case .one: return .off
+        }
+    }
+    
+    var iconName: String {
+        switch self {
+        case .off: return "repeat"
+        case .all: return "repeat"
+        case .one: return "repeat.1"
+        }
+    }
+}
+
 struct PlayerState: Equatable {
     var currentTrack: Track?
     var isPlaying: Bool = false
@@ -37,4 +60,6 @@ struct PlayerState: Equatable {
     var queue: [Track] = []
     var loading: Bool = false
     var loadingKey: String?
+    var shuffle: Bool = false
+    var repeatMode: RepeatMode = .off
 }
